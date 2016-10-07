@@ -1,12 +1,11 @@
 from flask import Flask, render_template, url_for, request, redirect, \
     flash, jsonify
-app = Flask(__name__)
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from database_setup import Base, Category, Item, User
 from flask import session as login_session
-import random, string
+import random
+import string
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.client import FlowExchangeError
 import httplib2
@@ -15,13 +14,17 @@ from flask import make_response
 import requests
 import urlparse
 
-CLIENT_ID = json.loads(open('client_secrets.json', 'r').read())['web']['client_id']
+app = Flask(__name__)
+
+CLIENT_ID = json.loads(open('client_secrets.json', 'r').read())[
+    'web']['client_id']
 
 engine = create_engine('sqlite:///itemcatalog.db')
 Base.metadata.bind = engine
 
 DBSession = sessionmaker(bind=engine)
 session = DBSession()
+
 
 # LOGIN
 @app.route('/login')
@@ -31,6 +34,7 @@ def showLogin():
     login_session['state'] = state
     # return "The current session state is %s" %login_session['state']
     return render_template('login.html', STATE=state)
+
 
 @app.route('/gconnect', methods=['POST'])
 def gconnect():
@@ -83,14 +87,13 @@ def gconnect():
 
     # Store the access token in the session for later use.
     login_session['provider'] = 'google'
-    login_session['credentials'] = credentials
+    login_session['credentials'] = credentials.access_token
     login_session['gplus_id'] = gplus_id
-    #response = make_response(json.dumps('Successfully connected user.', 200))
 
     # Get user info
     userinfo_url = "https://www.googleapis.com/oauth2/v1/userinfo"
-    params = {'access_token': credentials.access_token, 'alt':'json'}
-    answer = requests.get(userinfo_url, params = params)
+    params = {'access_token': credentials.access_token, 'alt': 'json'}
+    answer = requests.get(userinfo_url, params=params)
     data = json.loads(answer.text)
 
     login_session['username'] = data["name"]
@@ -109,7 +112,8 @@ def gconnect():
     output += '!</h1>'
     output += '<img src="'
     output += login_session['picture']
-    output += ' " style = "width: 300px; height: 300px;border-radius: 150px;-webkit-border-radius: 150px;-moz-border-radius: 150px;"> '
+    output += ' " style = "width: 300px; height: 300px;border-radius: 150px;' \
+              '-webkit-border-radius: 150px;-moz-border-radius: 150px;"> '
     flash("you are now logged in as %s" % login_session['username'])
     return output
 
@@ -119,11 +123,12 @@ def gdisconnect():
     # Only disconnect a connected user.
     credentials = login_session.get('credentials')
     if credentials is None:
-        response = make_response(json.dumps('Current user not connected.'), 401)
+        response = make_response(json.dumps('Current user not '
+                                            'connected.'), 401)
         response.headers['Content-Type'] = 'application/json'
         return response
     # Execute HTTP GET request to revoke current token.
-    access_token = credentials.access_token
+    access_token = credentials
     url = 'https://accounts.google.com/o/oauth2/revoke?token=%s' % access_token
     h = httplib2.Http()
     result = h.request(url, 'GET')[0]
